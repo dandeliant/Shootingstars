@@ -17,9 +17,12 @@ podest z trzema schodkami, balustradę i zadaszenie wejścia na dwóch słupkach
   i zieloną kropkę przy tabliczce z numerem
 - **Wnętrza za szybami** — każde okno ma losowy wystrój (lampy, rośliny, półki, koty)
 - **Deszcz meteorytów** — małe smugi białego światła spadają z nieba w losowych
-  odstępach (ok. 5 na minutę) i gasną tuż nad ziemią
-- **Nocna łąka (domyślnie)** — po otwarciu strony widać tylko roślinność pod
-  rozgwieżdżonym niebem; przycisk „🏙 Osiedle" odsłania blok z całym otoczeniem
+  odstępach (ok. 15 na minutę) i gasną tuż nad ziemią
+- **Księżyc** — duża tarcza z kraterami i poświatą wędruje po niebie niemal
+  niezauważalnie (pełne okrążenie ≈ 26 minut), a światło sceny podąża za nią
+- **Nocna łąka (domyślnie)** — po otwarciu strony widać tylko roślinność, staw
+  z meandrującą rzeką i ośnieżoną górę pod rozgwieżdżonym niebem;
+  przycisk „🏙 Osiedle" odsłania blok z całym otoczeniem
 - **Otoczenie jak z mapy** — ulica przed wejściem ze skrzyżowaniem po lewej,
   zatoka parkingowa z autami, latarnie uliczne, chodniki, przejście dla pieszych,
   sąsiednie bloki ze świecącymi oknami i pawilony za skrzyżowaniem

@@ -87,7 +87,7 @@
     display:flex; flex-direction:column; padding:26px 24px;
   }
   #panel.open{ transform:translateX(0); }
-  #panel .p-head{ display:flex; align-items:flex-start; justify-content:space-between; }
+  #panel .p-head{ display:flex; align-items:flex-start; justify-content:flex-end; margin-bottom:14px; }
   #panel h2{ font-size:30px; font-weight:800; letter-spacing:.5px; }
   #panel h2 small{ font-size:14px; font-weight:500; color:var(--muted); display:block; margin-top:3px; letter-spacing:.3px; }
   #closePanel{
@@ -151,22 +151,15 @@
 </div>
 <div id="toast"></div>
 
-<nav id="minimap">
-  <div class="mm-title">Plan klatki</div>
-</nav>
-
 <aside id="panel">
   <div class="p-head">
-    <h2>Mieszkanie <span id="pNum">–</span><small id="pFloor"></small></h2>
     <button id="closePanel" title="Zamknij">✕</button>
   </div>
-  <label for="pNotes">Notatki</label>
   <textarea id="pNotes"></textarea>
   <div class="panel-foot">
     <span id="savedInfo">Zapisano ✓</span>
-    <button id="clearBtn">Wyczyść wpis</button>
+    <button id="clearBtn">Wyczyść</button>
   </div>
-  <div class="hint-glow">Wszystko zapisuje się automatycznie w tej przeglądarce. Mieszkania z notatkami mają <b>ciepło świecące okna</b> i zieloną kropkę.</div>
 </aside>
 
 <script>
@@ -187,7 +180,6 @@ const FLOORS = 5, COLS = 3;
 const floorName = f => f === 0 ? "Parter" : f + ". piętro";
 /* numeracja 11,12,13… liczona od lewej PATRZĄC OD STRONY WEJŚCIA (tył modelu),
    więc na froncie z balkonami kolejność jest lustrzana: 13,12,11 itd. */
-const posName   = n => ["po lewej od wejścia", "środkowe", "po prawej od wejścia"][(n - 11) % 3];
 const aptNumber = (f, c) => 13 + f * 3 - c;
 
 const STORAGE_KEY = "klatka3d-notatki";
@@ -211,8 +203,10 @@ const camera = new THREE.PerspectiveCamera(46, window.innerWidth/window.innerHei
 /* grupy widoczności: osiedle (przełączane przyciskiem) i roślinność (zawsze widoczna) */
 const city = new THREE.Group();
 const nature = new THREE.Group();
+const meadowOnly = new THREE.Group();   /* staw, rzeka, góra — tylko w trybie łąki */
 scene.add(city);
 scene.add(nature);
+scene.add(meadowOnly);
 
 /* ---- światła ---- */
 scene.add(new THREE.HemisphereLight(0x5c74e8, 0x120f24, 0.42));
@@ -260,12 +254,12 @@ function spawnMeteor(){
   scene.add(m);
   meteors.push(m);
 }
-let meteorTimer = 1.5 + Math.random() * 5;
+let meteorTimer = 0.5 + Math.random() * 3;
 function updateMeteors(dt){
   meteorTimer -= dt;
   if (meteorTimer <= 0){
     spawnMeteor();
-    meteorTimer = 4 + Math.random() * 16;   /* średnio co ~12 s → ok. 5/min */
+    meteorTimer = 1.5 + Math.random() * 5;  /* średnio co ~4 s → ok. 15/min */
   }
   for (let i = meteors.length - 1; i >= 0; i--){
     const m = meteors[i];
@@ -282,6 +276,58 @@ function updateMeteors(dt){
     }
   }
 }
+
+/* ---- duży księżyc, wędrujący po niebie prawie niezauważalnie ---- */
+const moonMesh = (function(){
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 256;
+  const ctx = cv.getContext("2d");
+  const grad = ctx.createRadialGradient(108, 100, 20, 128, 128, 128);
+  grad.addColorStop(0, "#fdf8e8");
+  grad.addColorStop(0.75, "#e9e1c9");
+  grad.addColorStop(1, "#cfc7ae");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = "rgba(158,148,122,0.5)";     /* kratery */
+  [[70,90,18],[150,60,12],[180,150,22],[100,180,14],[60,150,9],[140,120,8],[200,90,7],[120,70,6]]
+    .forEach(([x, y, r]) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); });
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(6, 32, 32),
+    new THREE.MeshBasicMaterial({ map: tex })
+  );
+  /* miękka poświata wokół tarczy */
+  const gcv = document.createElement("canvas");
+  gcv.width = gcv.height = 128;
+  const gctx = gcv.getContext("2d");
+  const gg = gctx.createRadialGradient(64, 64, 10, 64, 64, 64);
+  gg.addColorStop(0, "rgba(250,244,220,0.5)");
+  gg.addColorStop(1, "rgba(250,244,220,0)");
+  gctx.fillStyle = gg;
+  gctx.fillRect(0, 0, 128, 128);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(gcv),
+    blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+  }));
+  glow.scale.set(30, 30, 1);
+  m.add(glow);
+  scene.add(m);
+  return m;
+})();
+let moonAngle = 4.2;
+function updateMoon(dt){
+  moonAngle += dt * 0.004;      /* pełne okrążenie nieba ≈ 26 minut */
+  const el = 0.62, r = 120;
+  moonMesh.position.set(
+    Math.cos(moonAngle) * Math.cos(el) * r,
+    Math.sin(el) * r + Math.sin(moonAngle * 0.7) * 8,
+    Math.sin(moonAngle) * Math.cos(el) * r
+  );
+  /* światło księżycowe podąża za tarczą */
+  moon.position.copy(moonMesh.position).multiplyScalar(0.25);
+}
+updateMoon(0);
 
 /* ---- podłoże ---- */
 const ground = new THREE.Mesh(
@@ -975,6 +1021,63 @@ tree(-14, 24, 1.15); tree(-34, 12, 1.1);
 bush(7, -5.8, 1); bush(-7, -5.8, 0.8); bush(3, 10, 1.1); bush(-13, 9, 0.9);
 bush(22, -8.5, 0.8); bush(-25, -16.8, 1); bush(10.5, -16.5, 0.9); bush(-33, 5, 1.2);
 
+/* ===== PEJZAŻ ŁĄKI: staw, rzeka i góra (tylko w trybie łąki) ===== */
+(function meadowScenery(){
+  const water = new THREE.MeshStandardMaterial({
+    color: 0x14304a, roughness: 0.12, metalness: 0.55,
+    emissive: 0x1c3f66, emissiveIntensity: 0.28
+  });
+
+  /* staw */
+  const pond = new THREE.Mesh(new THREE.CircleGeometry(5, 28), water);
+  pond.rotation.x = -Math.PI / 2;
+  pond.position.set(14, 0.02, 10);
+  pond.scale.set(1.45, 1, 1);
+  meadowOnly.add(pond);
+
+  /* rzeka wypływająca ze stawu, meandrująca ku krawędzi łąki */
+  const center = [];
+  for (let i = 0; i <= 24; i++){
+    const t = i / 24;
+    center.push(new THREE.Vector2(
+      14 + t * 30 + Math.sin(t * 6.3) * 3,
+      -(10 - t * 26 - Math.cos(t * 4.5) * 2.5)   /* uwaga: oś Y kształtu = -Z świata */
+    ));
+  }
+  const left = [], right = [];
+  for (let i = 0; i < center.length; i++){
+    const a = center[Math.max(0, i - 1)], b = center[Math.min(center.length - 1, i + 1)];
+    const d = new THREE.Vector2().subVectors(b, a).normalize();
+    const w = 1.5;
+    left.push(new THREE.Vector2(center[i].x - d.y * w, center[i].y + d.x * w));
+    right.push(new THREE.Vector2(center[i].x + d.y * w, center[i].y - d.x * w));
+  }
+  const riverShape = new THREE.Shape(left.concat(right.reverse()));
+  const river = new THREE.Mesh(new THREE.ShapeGeometry(riverShape), water);
+  river.rotation.x = -Math.PI / 2;
+  river.position.y = 0.018;
+  meadowOnly.add(river);
+
+  /* góra z ośnieżonym szczytem, na skraju łąki */
+  function peak(x, z, r, h){
+    const rock = new THREE.Mesh(
+      new THREE.ConeGeometry(r, h, 6),
+      new THREE.MeshStandardMaterial({ color: 0x2b3352, roughness: 1, flatShading: true })
+    );
+    rock.position.set(x, h / 2, z);
+    rock.castShadow = true;
+    meadowOnly.add(rock);
+    const snow = new THREE.Mesh(
+      new THREE.ConeGeometry(r * 0.34, h * 0.3, 6),
+      new THREE.MeshStandardMaterial({ color: 0xdfe6f2, roughness: 0.8, flatShading: true })
+    );
+    snow.position.set(x, h - h * 0.15 + 0.01, z);
+    meadowOnly.add(snow);
+  }
+  peak(-30, -26, 15, 17);
+  peak(-18, -33, 9, 10);
+})();
+
 /* ============================== KAMERA / STEROWANIE ============================== */
 const target = new THREE.Vector3(0, buildingH * 0.48, 0);
 let theta = 0.42, phi = 1.22, radius = 60;           // bieżące
@@ -1069,8 +1172,6 @@ function pick(e){
 
 /* ============================== PANEL ============================== */
 const panel = document.getElementById("panel");
-const pNum = document.getElementById("pNum");
-const pFloor = document.getElementById("pFloor");
 const pNotes = document.getElementById("pNotes");
 const savedInfo = document.getElementById("savedInfo");
 
@@ -1105,8 +1206,6 @@ function selectApt(num){
   const prev = selected;
   selected = num;
   const a = aptByNum(num);
-  pNum.textContent = num;
-  pFloor.textContent = floorName(a.f) + " • " + posName(num);
   const d = db[num] || {};
   pNotes.value = d.notes || "";
   panel.classList.add("open");
@@ -1150,27 +1249,6 @@ document.getElementById("clearBtn").addEventListener("click", () => {
 document.getElementById("closePanel").addEventListener("click", deselect);
 window.addEventListener("keydown", e => { if (e.key === "Escape") deselect(); });
 
-/* ============================== MINI-MAPA ============================== */
-const minimap = document.getElementById("minimap");
-for (let f = FLOORS - 1; f >= 0; f--){
-  const row = document.createElement("div");
-  row.className = "row";
-  const tag = document.createElement("div");
-  tag.className = "floor-tag";
-  tag.textContent = f === 0 ? "Parter" : f + " p.";
-  row.appendChild(tag);
-  for (let c = 0; c < COLS; c++){
-    const num = 11 + f * 3 + c;   // na planie: od lewej jak od strony wejścia
-    const chip = document.createElement("button");
-    chip.className = "chip";
-    chip.dataset.num = num;
-    chip.innerHTML = num + '<span class="mark"></span>';
-    chip.addEventListener("click", () => selectApt(num));
-    row.appendChild(chip);
-  }
-  minimap.appendChild(row);
-}
-
 /* ============================== PRZYCISKI ============================== */
 /* przełącznik: nocna łąka (domyślnie) ⇄ widok osiedla */
 const cityBtn = document.getElementById("cityBtn");
@@ -1179,8 +1257,8 @@ const HINT_CITY = "Przeciągnij, aby obracać • kółko myszy = zoom • klikn
 const HINT_MEADOW = "Nocna łąka pod deszczem meteorytów 🌠 Przeciągnij, aby się rozejrzeć — przycisk „Osiedle” odsłania blok, ulice i notatki.";
 function setCity(on){
   city.visible = on;
+  meadowOnly.visible = !on;
   ground.material.color.setHex(on ? 0x0d1128 : 0x0d1b13);
-  document.getElementById("minimap").style.display = on ? "" : "none";
   cityBtn.classList.toggle("active", on);
   hudHint.textContent = on ? HINT_CITY : HINT_MEADOW;
   if (!on) deselect();
@@ -1267,6 +1345,7 @@ function animate(){
   phi    += (tPhi    - phi)    * kRot;
   radius += (tRadius - radius) * kZoom;
   updateMeteors(dt);
+  updateMoon(dt);
   applyCamera();
   /* pulsowanie okien wybranego mieszkania */
   if (selected !== null){
@@ -1295,7 +1374,7 @@ window.__klatka = {
   setView(th, ph, r){ if (th !== undefined) tTheta = th; if (ph !== undefined) tPhi = ph; if (r !== undefined) tRadius = r; },
   state(){ return { theta, tTheta, phi, radius, tRadius, autoRotate, selected }; },
   snap(){ theta = tTheta; phi = tPhi; radius = tRadius; fitToWindow(); applyCamera(); renderer.render(scene, camera); },
-  tick(dt){ updateMeteors(dt || 0.05); },
+  tick(dt){ updateMeteors(dt || 0.05); updateMoon(dt || 0.05); },
   meteorCount(){ return meteors.length; }
 };
 
