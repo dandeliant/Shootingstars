@@ -30,6 +30,8 @@ podest z trzema schodkami, balustradę i zadaszenie wejścia na dwóch słupkach
   w gwiazdy ponad dachami
 - **Eksport / import** — notatki można zapisać do pliku JSON i przenieść
   na inny komputer lub urządzenie
+- **PWA** — stronę można zainstalować jak aplikację (na telefonie:
+  „Dodaj do ekranu głównego"); po pierwszym otwarciu działa offline
 
 ## Uruchomienie
 

@@ -1,0 +1,17 @@
+{
+  "name": "Deszcz Meteorytów",
+  "short_name": "Meteoryty",
+  "description": "Nocna łąka z deszczem meteorytów, księżycem i wizualizacją 3D klatki schodowej z notatkami o mieszkaniach.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1026",
+  "theme_color": "#0b1026",
+  "lang": "pl",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
