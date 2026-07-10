@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Moja Klatka — kto tu mieszka?</title>
+<title>Deszcz Meteorytów</title>
 <style>
   :root{
     --glass: rgba(17, 22, 40, .72);
@@ -137,7 +137,7 @@
 <canvas id="scene"></canvas>
 
 <header class="hud">
-  <h1>Moja Klatka<span class="dot">.</span></h1>
+  <h1>Deszcz Meteorytów<span class="dot">.</span></h1>
   <p>Przeciągnij, aby obracać • kółko myszy = zoom • kliknij mieszkanie, aby dodać notatkę. Okna z notatkami świecą na ciepło 🏠</p>
 </header>
 
@@ -159,10 +159,8 @@
     <h2>Mieszkanie <span id="pNum">–</span><small id="pFloor"></small></h2>
     <button id="closePanel" title="Zamknij">✕</button>
   </div>
-  <label for="pName">Mieszkańcy</label>
-  <input id="pName" type="text" placeholder="np. Państwo Kowalscy" autocomplete="off">
   <label for="pNotes">Notatki</label>
-  <textarea id="pNotes" placeholder="np. mają psa, głośne remonty, sympatyczni sąsiedzi…"></textarea>
+  <textarea id="pNotes"></textarea>
   <div class="panel-foot">
     <span id="savedInfo">Zapisano ✓</span>
     <button id="clearBtn">Wyczyść wpis</button>
@@ -234,6 +232,49 @@ scene.add(warmFill);
   g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
   scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0xcdd8ff, size:0.55, sizeAttenuation:true, transparent:true, opacity:0.9 })));
 })();
+
+/* ---- deszcz meteorytów: małe smugi białego światła spadające z nieba,
+        gasnące tuż przed dotknięciem ziemi (~5 na minutę) ---- */
+const meteors = [];
+const meteorGeo = new THREE.CylinderGeometry(0.012, 0.05, 2.4, 6);
+function spawnMeteor(){
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const m = new THREE.Mesh(meteorGeo, mat);
+  const ang = Math.random() * Math.PI * 2;
+  const r = 13 + Math.random() * 22;
+  m.position.set(Math.cos(ang) * r, 34 + Math.random() * 10, Math.sin(ang) * r);
+  const v = new THREE.Vector3((Math.random() - 0.5) * 7, -(15 + Math.random() * 9), (Math.random() - 0.5) * 7);
+  /* grubsza „głowa" walca skierowana zgodnie z ruchem, cienki ogon za nią */
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.clone().normalize().negate());
+  m.userData.v = v;
+  scene.add(m);
+  meteors.push(m);
+}
+let meteorTimer = 1.5 + Math.random() * 5;
+function updateMeteors(dt){
+  meteorTimer -= dt;
+  if (meteorTimer <= 0){
+    spawnMeteor();
+    meteorTimer = 4 + Math.random() * 16;   /* średnio co ~12 s → ok. 5/min */
+  }
+  for (let i = meteors.length - 1; i >= 0; i--){
+    const m = meteors[i];
+    m.position.addScaledVector(m.userData.v, dt);
+    const y = m.position.y;
+    let o = 1;
+    if (y > 30) o = (44 - y) / 14;              /* łagodne pojawianie u góry */
+    if (y < 8)  o = (y - 2.5) / 5.5;            /* gaśnięcie tuż nad ziemią */
+    m.material.opacity = Math.min(1, Math.max(0, o)) * 0.9;
+    if (y <= 2.5){
+      scene.remove(m);
+      m.material.dispose();
+      meteors.splice(i, 1);
+    }
+  }
+}
 
 /* ---- podłoże ---- */
 const ground = new THREE.Mesh(
@@ -823,7 +864,6 @@ function pick(e){
 const panel = document.getElementById("panel");
 const pNum = document.getElementById("pNum");
 const pFloor = document.getElementById("pFloor");
-const pName = document.getElementById("pName");
 const pNotes = document.getElementById("pNotes");
 const savedInfo = document.getElementById("savedInfo");
 
@@ -861,7 +901,6 @@ function selectApt(num){
   pNum.textContent = num;
   pFloor.textContent = floorName(a.f) + " • " + posName(num);
   const d = db[num] || {};
-  pName.value = d.name || "";
   pNotes.value = d.notes || "";
   panel.classList.add("open");
   if (prev){ refreshAptVisual(aptByNum(prev)); refreshChip(prev); }
@@ -882,7 +921,7 @@ function deselect(){
 let saveTimer = null;
 function scheduleSave(){
   if (selected === null) return;
-  db[selected] = { name: pName.value, notes: pNotes.value };
+  db[selected] = { notes: pNotes.value };
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveDb();
@@ -892,14 +931,13 @@ function scheduleSave(){
     setTimeout(() => savedInfo.classList.remove("show"), 1400);
   }, 350);
 }
-pName.addEventListener("input", scheduleSave);
 pNotes.addEventListener("input", scheduleSave);
 
 document.getElementById("clearBtn").addEventListener("click", () => {
   if (selected === null) return;
   delete db[selected];
   saveDb();
-  pName.value = ""; pNotes.value = "";
+  pNotes.value = "";
   refreshAptVisual(aptByNum(selected)); refreshChip(selected);
 });
 document.getElementById("closePanel").addEventListener("click", deselect);
@@ -974,13 +1012,15 @@ importFile.addEventListener("change", () => {
       });
       if (!entries.length){ toast("W tym pliku nie ma notatek klatki ⚠"); return; }
       if (!confirm("Zaimportować wpisy dla " + entries.length + " mieszkań?\nObecne notatki tych mieszkań zostaną nadpisane.")) return;
-      entries.forEach(([k, v]) => { db[k] = { name: String(v.name || ""), notes: String(v.notes || "") }; });
+      /* starsze eksporty miały pole "name" — scalamy je z notatką */
+      entries.forEach(([k, v]) => {
+        const merged = [String(v.name || "").trim(), String(v.notes || "").trim()].filter(Boolean).join("\n");
+        db[k] = { notes: merged };
+      });
       saveDb();
       refreshAll();
       if (selected !== null){
-        const d = db[selected] || {};
-        pName.value = d.name || "";
-        pNotes.value = d.notes || "";
+        pNotes.value = (db[selected] || {}).notes || "";
       }
       toast("Zaimportowano wpisy dla " + entries.length + " mieszkań ✔");
     } catch(e){
@@ -1004,6 +1044,7 @@ function animate(){
   theta  += (tTheta  - theta)  * kRot;
   phi    += (tPhi    - phi)    * kRot;
   radius += (tRadius - radius) * kZoom;
+  updateMeteors(dt);
   applyCamera();
   /* pulsowanie okien wybranego mieszkania */
   if (selected !== null){
@@ -1031,7 +1072,9 @@ fitToWindow();
 window.__klatka = {
   setView(th, ph, r){ if (th !== undefined) tTheta = th; if (ph !== undefined) tPhi = ph; if (r !== undefined) tRadius = r; },
   state(){ return { theta, tTheta, phi, radius, tRadius, autoRotate, selected }; },
-  snap(){ theta = tTheta; phi = tPhi; radius = tRadius; fitToWindow(); applyCamera(); renderer.render(scene, camera); }
+  snap(){ theta = tTheta; phi = tPhi; radius = tRadius; fitToWindow(); applyCamera(); renderer.render(scene, camera); },
+  tick(dt){ updateMeteors(dt || 0.05); },
+  meteorCount(){ return meteors.length; }
 };
 
 refreshAll();

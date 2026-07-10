@@ -1,6 +1,7 @@
-# Neigh 🏢
+# Shootingstars 🌠
 
-Interaktywna wizualizacja 3D klatki schodowej — kto mieszka w którym mieszkaniu.
+**Deszcz Meteorytów** — interaktywna wizualizacja 3D klatki schodowej z notatkami
+o mieszkaniach, pod nocnym niebem ze spadającymi meteorami.
 
 Budynek ma parter i 4 piętra, po 3 mieszkania na każdej kondygnacji (numery 11–25).
 Model odwzorowuje prawdziwy blok: elewację z balkonami, elewację wejściową z klatką
@@ -15,6 +16,8 @@ podest z trzema schodkami, balustradę i zadaszenie wejścia na dwóch słupkach
 - **Świecące okna** — mieszkania z notatkami mają ciepło oświetlone wnętrza
   i zieloną kropkę przy tabliczce z numerem
 - **Wnętrza za szybami** — każde okno ma losowy wystrój (lampy, rośliny, półki, koty)
+- **Deszcz meteorytów** — małe smugi białego światła spadają z nieba w losowych
+  odstępach (ok. 5 na minutę) i gasną tuż nad ziemią
 - **Eksport / import** — notatki można zapisać do pliku JSON i przenieść
   na inny komputer lub urządzenie
 
