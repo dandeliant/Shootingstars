@@ -1085,6 +1085,17 @@ let tTheta = 0.42, tPhi = 1.22, tRadius = 22;        // docelowe (intro: dojazd 
 const HOME = { theta: 0.42, phi: 1.22, radius: 22 };
 let autoRotate = true;
 
+/* pozycja wyjściowa auto-obrotu: nisko przy ziemi, patrząc w stronę księżyca */
+function aimAtMoon(){
+  let t = Math.atan2(-Math.cos(moonAngle), -Math.sin(moonAngle));
+  const twoPi = Math.PI * 2;
+  while (t < tTheta - Math.PI) t += twoPi;   /* najkrótsza droga obrotu */
+  while (t > tTheta + Math.PI) t -= twoPi;
+  tTheta = t;
+  tPhi = 2.3;
+  tRadius = 30;
+}
+
 function applyCamera(){
   camera.position.set(
     target.x + radius * Math.sin(phi) * Math.sin(theta),
@@ -1267,7 +1278,11 @@ cityBtn.addEventListener("click", () => setCity(!city.visible));
 
 const rotateBtn = document.getElementById("rotateBtn");
 function syncRotateBtn(){ rotateBtn.classList.toggle("active", autoRotate); }
-rotateBtn.addEventListener("click", () => { autoRotate = !autoRotate; syncRotateBtn(); });
+rotateBtn.addEventListener("click", () => {
+  autoRotate = !autoRotate;
+  if (autoRotate) aimAtMoon();
+  syncRotateBtn();
+});
 document.getElementById("resetBtn").addEventListener("click", () => {
   tTheta = HOME.theta; tPhi = HOME.phi; tRadius = HOME.radius;
   target.y = buildingH * 0.48;
@@ -1380,6 +1395,7 @@ window.__klatka = {
 
 refreshAll();
 setCity(false);          /* domyślnie: sama łąka nocą */
+aimAtMoon();             /* start: od dołu, w stronę księżyca */
 applyCamera();
 animate();
 })();
