@@ -57,6 +57,8 @@
   }
   .btn:hover{ border-color:rgba(255,255,255,.3); transform:translateY(-1px); }
   .btn.active{ border-color:var(--accent); color:var(--accent); }
+  select.btn{ appearance:none; -webkit-appearance:none; padding-right:18px; }
+  select.btn option{ background:#141a3a; color:var(--text); }
 
   /* ---------- mini-mapa klatki ---------- */
   #minimap{
@@ -149,6 +151,13 @@
 </header>
 
 <div class="toolbar">
+  <select class="btn" id="meteorRate" title="Ilość meteorytów na minutę" autocomplete="off">
+    <option value="5">☄ 5/min</option>
+    <option value="15">☄ 15/min</option>
+    <option value="30">☄ 30/min</option>
+    <option value="60">☄ 60/min</option>
+    <option value="120">☄ 120/min</option>
+  </select>
   <button class="btn" id="cityBtn">🏙 Osiedle</button>
   <button class="btn active" id="rotateBtn">⟳ Auto-obrót</button>
   <button class="btn" id="resetBtn">⌂ Widok</button>
@@ -261,12 +270,19 @@ function spawnMeteor(){
   scene.add(m);
   meteors.push(m);
 }
-let meteorTimer = 0.5 + Math.random() * 3;
+/* częstotliwość ustawiana w menu; zapamiętywana w przeglądarce */
+let meteorsPerMin = parseInt(localStorage.getItem("klatka3d-meteory"), 10);
+if (!(meteorsPerMin >= 1 && meteorsPerMin <= 240)) meteorsPerMin = 15;
+function nextMeteorDelay(){
+  const avg = 60 / meteorsPerMin;
+  return avg * (0.4 + Math.random() * 1.2);   /* losowe odstępy, średnio = avg */
+}
+let meteorTimer = Math.random() * 2;
 function updateMeteors(dt){
   meteorTimer -= dt;
   if (meteorTimer <= 0){
     spawnMeteor();
-    meteorTimer = 1.5 + Math.random() * 5;  /* średnio co ~4 s → ok. 15/min */
+    meteorTimer = nextMeteorDelay();
   }
   for (let i = meteors.length - 1; i >= 0; i--){
     const m = meteors[i];
@@ -1282,6 +1298,17 @@ function setCity(on){
   if (!on) deselect();
 }
 cityBtn.addEventListener("click", () => setCity(!city.visible));
+
+/* menu: ilość meteorytów na minutę */
+const meteorRateSel = document.getElementById("meteorRate");
+if ([...meteorRateSel.options].some(o => o.value === String(meteorsPerMin))){
+  meteorRateSel.value = String(meteorsPerMin);
+}
+meteorRateSel.addEventListener("change", () => {
+  meteorsPerMin = parseInt(meteorRateSel.value, 10) || 15;
+  localStorage.setItem("klatka3d-meteory", meteorsPerMin);
+  meteorTimer = Math.min(meteorTimer, nextMeteorDelay());
+});
 
 const rotateBtn = document.getElementById("rotateBtn");
 function syncRotateBtn(){ rotateBtn.classList.toggle("active", autoRotate); }
